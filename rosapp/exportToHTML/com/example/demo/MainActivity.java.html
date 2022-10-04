@@ -1,0 +1,574 @@
+<html>
+<head>
+<title>MainActivity.java</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #808080;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MainActivity.java</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com.example.demo</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">android.Manifest</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.Intent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.pm.ActivityInfo</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.pm.PackageManager</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.graphics.Bitmap</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.graphics.SurfaceTexture</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.hardware.usb.UsbManager</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.AsyncTask</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Build</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Bundle</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Handler</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.util.Log</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.view.TextureView</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.view.View</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.Button</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.ProgressBar</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.Switch</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.TextView</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.Toast</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">androidx.annotation.NonNull</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">androidx.core.app.ActivityCompat</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">androidx.core.content.ContextCompat</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">org.jboss.netty.buffer.ChannelBufferOutputStream</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.android.RosActivity</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.internal.message.MessageBuffers</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.Node</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.NodeConfiguration</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.NodeMainExecutor</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.topic.Publisher</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">java.net.URI</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.ArrayList</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.List</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.Timer</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.TimerTask</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.concurrent.atomic.AtomicBoolean</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">dji.common.camera.SystemState</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.error.DJIError</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.error.DJISDKError</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.product.Model</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.log.DJILog</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.base.BaseComponent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.base.BaseProduct</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.camera.Camera</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.camera.VideoFeeder</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.codec.DJICodecManager</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.DJISDKInitEvent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.DJISDKManager</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">sensor_msgs.CompressedImage</span><span class="s0">;</span>
+
+<span class="s0">public class </span><span class="s1">MainActivity </span><span class="s0">extends </span><span class="s1">RosActivity </span><span class="s0">implements </span><span class="s1">TextureView.SurfaceTextureListener{</span>
+
+    <span class="s0">private static final </span><span class="s1">String TAG = MainActivity.</span><span class="s0">class</span><span class="s1">.getSimpleName()</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">String[] REQUIRED_PERMISSION_LIST = </span><span class="s0">new </span><span class="s1">String[] {</span>
+            <span class="s1">Manifest.permission.VIBRATE</span><span class="s0">, </span><span class="s2">// Gimbal rotation</span>
+            <span class="s1">Manifest.permission.INTERNET</span><span class="s0">, </span><span class="s2">// API requests</span>
+            <span class="s1">Manifest.permission.ACCESS_WIFI_STATE</span><span class="s0">, </span><span class="s2">// WIFI connected products</span>
+            <span class="s1">Manifest.permission.ACCESS_COARSE_LOCATION</span><span class="s0">, </span><span class="s2">// Maps</span>
+            <span class="s1">Manifest.permission.ACCESS_NETWORK_STATE</span><span class="s0">, </span><span class="s2">// WIFI connected products</span>
+            <span class="s1">Manifest.permission.ACCESS_FINE_LOCATION</span><span class="s0">, </span><span class="s2">// Maps</span>
+            <span class="s1">Manifest.permission.CHANGE_WIFI_STATE</span><span class="s0">, </span><span class="s2">// Changing between WIFI and USB connection</span>
+            <span class="s1">Manifest.permission.WRITE_EXTERNAL_STORAGE</span><span class="s0">, </span><span class="s2">// Log files</span>
+            <span class="s1">Manifest.permission.BLUETOOTH</span><span class="s0">, </span><span class="s2">// Bluetooth connected products</span>
+            <span class="s1">Manifest.permission.BLUETOOTH_ADMIN</span><span class="s0">, </span><span class="s2">// Bluetooth connected products</span>
+            <span class="s1">Manifest.permission.READ_EXTERNAL_STORAGE</span><span class="s0">, </span><span class="s2">// Log files</span>
+            <span class="s1">Manifest.permission.READ_PHONE_STATE</span><span class="s0">, </span><span class="s2">// Device UUID accessed upon registration</span>
+            <span class="s1">Manifest.permission.RECORD_AUDIO </span><span class="s2">// Speaker accessory</span>
+    <span class="s1">}</span><span class="s0">;</span>
+    <span class="s0">private static final int </span><span class="s1">REQUEST_PERMISSION_CODE = </span><span class="s3">12345</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">List&lt;String&gt; missingPermission = </span><span class="s0">new </span><span class="s1">ArrayList&lt;&gt;()</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">AtomicBoolean isRegistrationInProgress = </span><span class="s0">new </span><span class="s1">AtomicBoolean(</span><span class="s0">false</span><span class="s1">)</span><span class="s0">;</span>
+    <span class="s0">private int </span><span class="s1">lastProcess = -</span><span class="s3">1</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">Handler mHander = </span><span class="s0">new </span><span class="s1">Handler()</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">BaseComponent.ComponentListener mDJIComponentListener = </span><span class="s0">new </span><span class="s1">BaseComponent.ComponentListener() {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">onConnectivityChange(</span><span class="s0">boolean </span><span class="s1">isConnected) {</span>
+            <span class="s1">Log.d(TAG</span><span class="s0">, </span><span class="s4">&quot;onComponentConnectivityChanged: &quot; </span><span class="s1">+ isConnected)</span><span class="s0">;</span>
+            <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span><span class="s0">;</span>
+    <span class="s0">protected </span><span class="s1">VideoFeeder.VideoDataListener mReceivedVideoDataListener = </span><span class="s0">null;</span>
+    <span class="s0">protected </span><span class="s1">DJICodecManager mCodecManager = </span><span class="s0">null;</span>
+    <span class="s0">protected </span><span class="s1">TextureView mVideoSurface = </span><span class="s0">null;</span>
+
+    <span class="s0">private </span><span class="s1">TextView textView</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Switch connectedSwitch</span><span class="s0">, </span><span class="s1">connectedROSSwitch</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ProgressBar connectedProgress</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">DjiRosDriverNode rosDriver = </span><span class="s0">new </span><span class="s1">DjiRosDriverNode()</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">IsRosConnectedNode isRosConnectedNode = </span><span class="s0">new </span><span class="s1">IsRosConnectedNode()</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ImageNode imageNode = </span><span class="s0">new </span><span class="s1">ImageNode()</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Timer checkConnectionToDroneTimer = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">CheckConnectionToDroneTask checkConnectionToDroneTask</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Button btn</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Button videobtn</span><span class="s0">;</span>
+    <span class="s0">private boolean </span><span class="s1">isDroneConnected = </span><span class="s0">false;</span>
+    <span class="s0">private </span><span class="s1">Node mapNode</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Publisher&lt;CompressedImage&gt; imgPub</span><span class="s0">;</span>
+    <span class="s0">private static </span><span class="s1">Bitmap bit = </span><span class="s0">null;</span>
+    <span class="s0">private boolean </span><span class="s1">isUpdate = </span><span class="s0">false;</span>
+    <span class="s0">private </span><span class="s1">ChannelBufferOutputStream stream = </span><span class="s0">new </span><span class="s1">ChannelBufferOutputStream(MessageBuffers.dynamicBuffer())</span><span class="s0">;</span>
+
+    <span class="s0">public </span><span class="s1">MainActivity() {</span>
+        <span class="s0">super</span><span class="s1">(</span><span class="s4">&quot;ros dji driver&quot;</span><span class="s0">, </span><span class="s4">&quot;ros dji driver&quot;</span><span class="s0">, </span><span class="s1">URI.create(</span><span class="s4">&quot;http://192.168.2.100:11311&quot;</span><span class="s1">))</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static synchronized </span><span class="s1">Bitmap getBit() {</span>
+        <span class="s0">return </span><span class="s1">bit</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@SuppressWarnings(</span><span class="s4">&quot;unchecked&quot;</span><span class="s1">)</span>
+    <span class="s1">@Override</span>
+    <span class="s0">protected void </span><span class="s1">onCreate(Bundle savedInstanceState) {</span>
+        <span class="s0">super</span><span class="s1">.onCreate(savedInstanceState)</span><span class="s0">;</span>
+
+
+        <span class="s1">checkAndRequestPermissions()</span><span class="s0">;</span>
+        <span class="s1">BaseDJIApplication.getEventBus().register(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s2">// When the compile and target version is higher than 22, please request the following permission at runtime to ensure the SDK works well.</span>
+        <span class="s0">if </span><span class="s1">(Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.M) {</span>
+            <span class="s2">//checkAndRequestPermissions();</span>
+            <span class="s1">ActivityCompat.requestPermissions(</span><span class="s0">this, new </span><span class="s1">String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE</span><span class="s0">, </span><span class="s1">Manifest.permission.VIBRATE</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.INTERNET</span><span class="s0">, </span><span class="s1">Manifest.permission.ACCESS_WIFI_STATE</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.WAKE_LOCK</span><span class="s0">, </span><span class="s1">Manifest.permission.ACCESS_COARSE_LOCATION</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.ACCESS_NETWORK_STATE</span><span class="s0">, </span><span class="s1">Manifest.permission.ACCESS_FINE_LOCATION</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.CHANGE_WIFI_STATE</span><span class="s0">, </span><span class="s1">Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.READ_EXTERNAL_STORAGE</span><span class="s0">, </span><span class="s1">Manifest.permission.SYSTEM_ALERT_WINDOW</span><span class="s0">,</span>
+                    <span class="s1">Manifest.permission.READ_PHONE_STATE</span><span class="s0">,</span><span class="s1">}</span><span class="s0">,</span><span class="s3">1</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+        <span class="s2">//LayoutInflater layoutInflater = (LayoutInflater) getApplicationContext().getSystemService(Service.LAYOUT_INFLATER_SERVICE);</span>
+        <span class="s2">//View view = getLayoutInflater().inflate(R.layout.activity_main, null);</span>
+        <span class="s1">setContentView(R.layout.activity_main)</span><span class="s0">;</span>
+        <span class="s1">setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE)</span><span class="s0">;</span>
+        <span class="s1">initUI()</span><span class="s0">;</span>
+
+        <span class="s1">mReceivedVideoDataListener = </span><span class="s0">new </span><span class="s1">VideoFeeder.VideoDataListener() {</span>
+
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onReceive(</span><span class="s0">byte</span><span class="s1">[] videoBuffer</span><span class="s0">, int </span><span class="s1">size) {</span>
+                <span class="s0">if </span><span class="s1">(mCodecManager != </span><span class="s0">null</span><span class="s1">) {</span>
+                    <span class="s1">mCodecManager.sendDataToDecoder(videoBuffer</span><span class="s0">, </span><span class="s1">size)</span><span class="s0">;</span>
+                <span class="s1">}</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span><span class="s0">;</span>
+
+        <span class="s1">Camera camera = FPVDemoApplication.getCameraInstance()</span><span class="s0">;</span>
+
+        <span class="s0">if </span><span class="s1">(camera != </span><span class="s0">null</span><span class="s1">) {</span>
+
+            <span class="s1">camera.setSystemStateCallback(</span><span class="s0">new </span><span class="s1">SystemState.Callback() {</span>
+                <span class="s1">@Override</span>
+                <span class="s0">public void </span><span class="s1">onUpdate(SystemState cameraSystemState) {</span>
+                <span class="s1">}</span>
+            <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s1">}</span>
+
+        <span class="s2">//startLiveShow();</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">initUI() {</span>
+        <span class="s1">textView = (TextView) findViewById(R.id.textDebug)</span><span class="s0">;</span>
+        <span class="s1">mVideoSurface = (TextureView)findViewById(R.id.video_previewer_surface)</span><span class="s0">;</span>
+        <span class="s2">//primaryVideoFeedView = (VideoFeedView) findViewById(R.id.video_view_primary_video_feed);</span>
+        <span class="s1">connectedSwitch = (Switch) findViewById(R.id.switch_dron_conn)</span><span class="s0">;</span>
+        <span class="s1">connectedROSSwitch = (Switch) findViewById(R.id.switch_ros_conn)</span><span class="s0">;</span>
+        <span class="s1">connectedProgress = (ProgressBar) findViewById(R.id.connected_progressBar)</span><span class="s0">;</span>
+
+        <span class="s1">checkConnectionToDroneTask = </span><span class="s0">new </span><span class="s1">CheckConnectionToDroneTask()</span><span class="s0">;</span>
+        <span class="s1">checkConnectionToDroneTimer = </span><span class="s0">new </span><span class="s1">Timer()</span><span class="s0">;</span>
+        <span class="s1">checkConnectionToDroneTimer.schedule(checkConnectionToDroneTask</span><span class="s0">,</span><span class="s3">0</span><span class="s0">,</span><span class="s3">500</span><span class="s1">)</span><span class="s0">;</span>
+
+        <span class="s1">btn = (Button) findViewById(R.id.button_start_vsticks)</span><span class="s0">;</span>
+        <span class="s1">btn.setOnClickListener(</span><span class="s0">new </span><span class="s1">View.OnClickListener() {</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onClick(View v) {</span>
+                <span class="s1">rosDriver.StartVirtualSticks()</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s2">//Initialize DJI SDK Manager</span>
+        <span class="s2">//mHandler = new Handler(Looper.getMainLooper());</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">!= mVideoSurface) {</span>
+            <span class="s1">mVideoSurface.setSurfaceTextureListener(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onRequestPermissionsResult(</span><span class="s0">int </span><span class="s1">requestCode</span><span class="s0">,</span>
+                                           <span class="s1">@NonNull String[] permissions</span><span class="s0">,</span>
+                                           <span class="s1">@NonNull </span><span class="s0">int</span><span class="s1">[] grantResults) {</span>
+        <span class="s0">super</span><span class="s1">.onRequestPermissionsResult(requestCode</span><span class="s0">, </span><span class="s1">permissions</span><span class="s0">, </span><span class="s1">grantResults)</span><span class="s0">;</span>
+        <span class="s2">// Check for granted permission and remove from missing list</span>
+        <span class="s0">if </span><span class="s1">(requestCode == REQUEST_PERMISSION_CODE) {</span>
+            <span class="s0">for </span><span class="s1">(</span><span class="s0">int </span><span class="s1">i = grantResults.length - </span><span class="s3">1</span><span class="s0">; </span><span class="s1">i &gt;= </span><span class="s3">0</span><span class="s0">; </span><span class="s1">i--) {</span>
+                <span class="s0">if </span><span class="s1">(grantResults[i] == PackageManager.PERMISSION_GRANTED) {</span>
+                    <span class="s1">missingPermission.remove(permissions[i])</span><span class="s0">;</span>
+                <span class="s1">}</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span>
+        <span class="s2">// If there is enough permission, we will start the registration</span>
+        <span class="s0">if </span><span class="s1">(missingPermission.isEmpty()) {</span>
+            <span class="s1">startSDKRegistration()</span><span class="s0">;</span>
+        <span class="s1">} </span><span class="s0">else </span><span class="s1">{</span>
+            <span class="s1">Toast.makeText(getApplicationContext()</span><span class="s0">, </span><span class="s4">&quot;Missing permissions!!!&quot;</span><span class="s0">, </span><span class="s1">Toast.LENGTH_LONG).show()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">onProductChange() {</span>
+        <span class="s1">initPreviewer()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onResume() {</span>
+        <span class="s1">Log.e(TAG</span><span class="s0">, </span><span class="s4">&quot;onResume&quot;</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s0">super</span><span class="s1">.onResume()</span><span class="s0">;</span>
+        <span class="s1">initPreviewer()</span><span class="s0">;</span>
+        <span class="s1">onProductChange()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onPause() {</span>
+        <span class="s1">Log.e(TAG</span><span class="s0">, </span><span class="s4">&quot;onPause&quot;</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s2">//uninitPreviewer();</span>
+        <span class="s0">super</span><span class="s1">.onPause()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onStop() {</span>
+        <span class="s1">Log.e(TAG</span><span class="s0">, </span><span class="s4">&quot;onStop&quot;</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s0">super</span><span class="s1">.onStop()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public void </span><span class="s1">onReturn(View view){</span>
+        <span class="s1">Log.e(TAG</span><span class="s0">, </span><span class="s4">&quot;onReturn&quot;</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s0">this</span><span class="s1">.finish()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">protected void </span><span class="s1">onDestroy() {</span>
+        <span class="s1">BaseDJIApplication.getEventBus().unregister(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">uninitPreviewer()</span><span class="s0">;</span>
+        <span class="s0">super</span><span class="s1">.onDestroy()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">initPreviewer() {</span>
+        <span class="s1">BaseProduct product = FPVDemoApplication.getProductInstance()</span><span class="s0">;</span>
+        <span class="s0">if </span><span class="s1">(product == </span><span class="s0">null </span><span class="s1">|| !product.isConnected()) {}</span>
+        <span class="s0">else</span><span class="s1">{</span>
+            <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">!= mVideoSurface){</span>
+                <span class="s1">mVideoSurface.setSurfaceTextureListener(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+            <span class="s1">}</span>
+            <span class="s0">if </span><span class="s1">(!product.getModel().equals(Model.UNKNOWN_AIRCRAFT)) {</span>
+                <span class="s1">VideoFeeder.getInstance().getPrimaryVideoFeed().addVideoDataListener(mReceivedVideoDataListener)</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">uninitPreviewer() {</span>
+        <span class="s1">Camera camera = FPVDemoApplication.getCameraInstance()</span><span class="s0">;</span>
+        <span class="s0">if </span><span class="s1">(camera != </span><span class="s0">null</span><span class="s1">) {</span>
+            <span class="s1">VideoFeeder.getInstance().getPrimaryVideoFeed().addVideoDataListener(</span><span class="s0">null</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">checkAndRequestPermissions() {</span>
+        <span class="s2">// Check for permissions</span>
+        <span class="s0">for </span><span class="s1">(String eachPermission : REQUIRED_PERMISSION_LIST) {</span>
+            <span class="s0">if </span><span class="s1">(ContextCompat.checkSelfPermission(</span><span class="s0">this, </span><span class="s1">eachPermission) != PackageManager.PERMISSION_GRANTED) {</span>
+                <span class="s1">missingPermission.add(eachPermission)</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span>
+        <span class="s2">// Request for missing permissions</span>
+        <span class="s0">if </span><span class="s1">(missingPermission.isEmpty()) {</span>
+            <span class="s1">startSDKRegistration()</span><span class="s0">;</span>
+        <span class="s1">} </span><span class="s0">else if </span><span class="s1">(Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.M) {</span>
+            <span class="s1">ActivityCompat.requestPermissions(</span><span class="s0">this,</span>
+                    <span class="s1">missingPermission.toArray(</span><span class="s0">new </span><span class="s1">String[missingPermission.size()])</span><span class="s0">,</span>
+                    <span class="s1">REQUEST_PERMISSION_CODE)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">protected void </span><span class="s1">onNewIntent(@NonNull Intent intent) {</span>
+        <span class="s1">String action = intent.getAction()</span><span class="s0">;</span>
+        <span class="s0">if </span><span class="s1">(UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(action)) {</span>
+            <span class="s1">Intent attachedIntent = </span><span class="s0">new </span><span class="s1">Intent()</span><span class="s0">;</span>
+            <span class="s1">attachedIntent.setAction(DJISDKManager.USB_ACCESSORY_ATTACHED)</span><span class="s0">;</span>
+            <span class="s1">sendBroadcast(attachedIntent)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">startSDKRegistration() {</span>
+        <span class="s0">if </span><span class="s1">(isRegistrationInProgress.compareAndSet(</span><span class="s0">false, true</span><span class="s1">)) {</span>
+            <span class="s1">AsyncTask.execute(</span><span class="s0">new </span><span class="s1">Runnable() {</span>
+                <span class="s1">@Override</span>
+                <span class="s0">public void </span><span class="s1">run() {</span>
+                    <span class="s1">DJISDKManager.getInstance().registerApp(MainActivity.</span><span class="s0">this</span><span class="s1">.getApplicationContext()</span><span class="s0">, new </span><span class="s1">DJISDKManager.SDKManagerCallback() {</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onRegister(DJIError djiError) {</span>
+                            <span class="s0">if </span><span class="s1">(djiError == DJISDKError.REGISTRATION_SUCCESS) {</span>
+                                <span class="s1">DJILog.e(</span><span class="s4">&quot;App registration&quot;</span><span class="s0">, </span><span class="s1">DJISDKError.REGISTRATION_SUCCESS.getDescription())</span><span class="s0">;</span>
+                                <span class="s1">DJISDKManager.getInstance().startConnectionToProduct()</span><span class="s0">;</span>
+                            <span class="s1">}</span>
+
+                            <span class="s1">Log.v(TAG</span><span class="s0">, </span><span class="s1">djiError.getDescription())</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onProductDisconnect() {</span>
+                            <span class="s1">Log.d(TAG</span><span class="s0">, </span><span class="s4">&quot;onProductDisconnect&quot;</span><span class="s1">)</span><span class="s0">;</span>
+                            <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onProductConnect(BaseProduct baseProduct) {</span>
+                            <span class="s1">Log.d(TAG</span><span class="s0">, </span><span class="s1">String.format(</span><span class="s4">&quot;onProductConnect newProduct:%s&quot;</span><span class="s0">, </span><span class="s1">baseProduct))</span><span class="s0">;</span>
+                            <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onProductChanged(BaseProduct baseProduct) {</span>
+
+                        <span class="s1">}</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onComponentChange(BaseProduct.ComponentKey componentKey</span><span class="s0">,</span>
+                                                      <span class="s1">BaseComponent oldComponent</span><span class="s0">,</span>
+                                                      <span class="s1">BaseComponent newComponent) {</span>
+                            <span class="s0">if </span><span class="s1">(newComponent != </span><span class="s0">null</span><span class="s1">) {</span>
+                                <span class="s1">newComponent.setComponentListener(mDJIComponentListener)</span><span class="s0">;</span>
+                            <span class="s1">}</span>
+                            <span class="s1">Log.d(TAG</span><span class="s0">,</span>
+                                    <span class="s1">String.format(</span><span class="s4">&quot;onComponentChange key:%s, oldComponent:%s, newComponent:%s&quot;</span><span class="s0">,</span>
+                                            <span class="s1">componentKey</span><span class="s0">,</span>
+                                            <span class="s1">oldComponent</span><span class="s0">,</span>
+                                            <span class="s1">newComponent))</span><span class="s0">;</span>
+
+                            <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onInitProcess(DJISDKInitEvent djisdkInitEvent</span><span class="s0">, int </span><span class="s1">i) {</span>
+
+                        <span class="s1">}</span>
+
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onDatabaseDownloadProgress(</span><span class="s0">long </span><span class="s1">current</span><span class="s0">, long </span><span class="s1">total) {</span>
+                            <span class="s0">int </span><span class="s1">process = (</span><span class="s0">int</span><span class="s1">) (</span><span class="s3">100 </span><span class="s1">* current / total)</span><span class="s0">;</span>
+                            <span class="s0">if </span><span class="s1">(process == lastProcess) {</span>
+                                <span class="s0">return;</span>
+                            <span class="s1">}</span>
+                            <span class="s1">lastProcess = process</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+                <span class="s1">}</span>
+            <span class="s1">})</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public void </span><span class="s1">showToast(</span><span class="s0">final </span><span class="s1">String msg) {</span>
+        <span class="s1">runOnUiThread(</span><span class="s0">new </span><span class="s1">Runnable() {</span>
+            <span class="s0">public void </span><span class="s1">run() {</span>
+                <span class="s1">Toast.makeText(MainActivity.</span><span class="s0">this, </span><span class="s1">msg</span><span class="s0">, </span><span class="s1">Toast.LENGTH_SHORT).show()</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">})</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">notifyStatusChange() {</span>
+        <span class="s1">BaseDJIApplication.getEventBus().post(</span><span class="s0">new </span><span class="s1">ConnectivityChangeEvent())</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onSurfaceTextureAvailable(SurfaceTexture surface</span><span class="s0">, int </span><span class="s1">width</span><span class="s0">, int </span><span class="s1">height) {</span>
+      <span class="s1">Log.e(</span><span class="s4">&quot;TAG&quot;</span><span class="s0">, </span><span class="s4">&quot;onSurfaceTextureAvailable&quot;</span><span class="s1">)</span><span class="s0">;</span>
+      <span class="s0">if </span><span class="s1">(mCodecManager == </span><span class="s0">null</span><span class="s1">) {</span>
+          <span class="s1">mCodecManager = </span><span class="s0">new </span><span class="s1">DJICodecManager(</span><span class="s0">this, </span><span class="s1">surface</span><span class="s0">, </span><span class="s1">width</span><span class="s0">, </span><span class="s1">height)</span><span class="s0">;</span>
+      <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onSurfaceTextureSizeChanged(SurfaceTexture surface</span><span class="s0">, int </span><span class="s1">width</span><span class="s0">, int </span><span class="s1">height) {</span>
+        <span class="s1">Log.e(</span><span class="s4">&quot;TAG&quot;</span><span class="s0">, </span><span class="s4">&quot;onSurfaceTextureSizeChanged&quot;</span><span class="s1">)</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public boolean </span><span class="s1">onSurfaceTextureDestroyed(SurfaceTexture surface) {</span>
+        <span class="s1">Log.e(</span><span class="s4">&quot;TAG&quot;</span><span class="s0">, </span><span class="s4">&quot;onSurfaceTextureDestroyed&quot;</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s0">if </span><span class="s1">(mCodecManager != </span><span class="s0">null</span><span class="s1">){</span>
+            <span class="s1">mCodecManager.cleanSurface()</span><span class="s0">;</span>
+            <span class="s1">mCodecManager = </span><span class="s0">null;</span>
+        <span class="s1">}</span>
+        <span class="s0">return false;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onSurfaceTextureUpdated(SurfaceTexture surface) {</span>
+        <span class="s0">if</span><span class="s1">(imageNode.getNeed() == </span><span class="s0">true</span><span class="s1">){</span>
+            <span class="s1">bit = mVideoSurface.getBitmap()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+        <span class="s0">else </span><span class="s1">{</span>
+            <span class="s2">//bit.recycle();</span>
+            <span class="s1">bit = </span><span class="s0">null;</span>
+        <span class="s1">}</span>
+
+        <span class="s2">//final Bitmap image = mVideoSurface.getBitmap();</span>
+        <span class="s2">//bit = mVideoSurface.getBitmap();</span>
+        <span class="s2">/*bit = image.copy(image.getConfig(), true); 
+        if (isUpdate == false &amp;&amp; bit == null) { 
+            bit = image.copy(image.getConfig(), true); 
+            bit = Bitmap.createScaledBitmap(bit, (int)bit.getWidth()/2, (int)bit.getHeight()/2, true); 
+            isUpdate = true; 
+        } 
+        else { 
+            bit = image.copy(image.getConfig(), true); 
+            bit = Bitmap.createScaledBitmap(bit, (int)bit.getWidth()/2, (int)bit.getHeight()/2, true); 
+        }*/</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private class </span><span class="s1">CheckConnectionToDroneTask </span><span class="s0">extends </span><span class="s1">TimerTask {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">run() {</span>
+            <span class="s0">final boolean </span><span class="s1">isDroneConnected = BaseDJIApplication.getProductInstance() != </span><span class="s0">null </span><span class="s1">? BaseDJIApplication.getProductInstance().isConnected() : </span><span class="s0">false;</span>
+            <span class="s0">final boolean </span><span class="s1">isROSConnected = isRosConnectedNode.IsConnected()</span><span class="s0">;</span>
+            <span class="s1">runOnUiThread(</span><span class="s0">new </span><span class="s1">Runnable() {</span>
+                <span class="s1">@Override</span>
+                <span class="s0">public void </span><span class="s1">run() {</span>
+                   <span class="s1">connectedSwitch.setChecked(isDroneConnected)</span><span class="s0">;</span>
+                   <span class="s1">connectedROSSwitch.setChecked(isROSConnected)</span><span class="s0">;</span>
+                   <span class="s2">//btn.setEnabled(isDroneConnected);</span>
+                   <span class="s1">connectedProgress.setVisibility(isDroneConnected &amp;&amp; isROSConnected ? View.GONE: View.VISIBLE)</span><span class="s0">;</span>
+                <span class="s1">}</span>
+            <span class="s1">})</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static class </span><span class="s1">ConnectivityChangeEvent {</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">protected void </span><span class="s1">init(NodeMainExecutor nodeMainExecutor) {</span>
+        <span class="s1">Log.d(</span><span class="s4">&quot;TAG&quot;</span><span class="s0">, </span><span class="s1">getRosHostname())</span><span class="s0">;</span>
+        <span class="s1">NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(getRosHostname())</span><span class="s0">;</span>
+        <span class="s1">nodeConfiguration.setMasterUri(getMasterUri())</span><span class="s0">;</span>
+
+        <span class="s1">nodeMainExecutor.execute(isRosConnectedNode</span><span class="s0">, </span><span class="s1">nodeConfiguration)</span><span class="s0">;</span>
+        <span class="s1">nodeMainExecutor.execute(rosDriver</span><span class="s0">, </span><span class="s1">nodeConfiguration)</span><span class="s0">;</span>
+        <span class="s1">nodeMainExecutor.execute(imageNode</span><span class="s0">, </span><span class="s1">nodeConfiguration)</span><span class="s0">;</span>
+        <span class="s2">/*nodeMainExecutor.execute(new NodeMain() { 
+            @Override 
+            public GraphName getDefaultNodeName() { 
+                return GraphName.of(&quot;ros_test&quot;); 
+            } 
+ 
+            @Override 
+            public void onStart(ConnectedNode connectedNode) { 
+                final Publisher&lt;CompressedImage&gt; pub =  connectedNode.newPublisher(&quot;/image/compressed&quot;, CompressedImage._TYPE); 
+                final Publisher&lt;CameraInfo&gt; info_pub = connectedNode.newPublisher(&quot;/image_info&quot;, CameraInfo._TYPE); 
+                connectedNode.executeCancellableLoop(new CancellableLoop() { 
+                    @Override 
+                    protected void loop() throws InterruptedException { 
+                        if (BaseDJIApplication.getProductInstance() != null ? BaseDJIApplication.getProductInstance().isConnected() : false){ 
+                              if (bit != null) { 
+                                  //Bitmap copy1 = bit.copy(bit.getConfig(), true); 
+                                  Bitmap resized = Bitmap.createScaledBitmap(bit, (int) bit.getWidth() / 4, (int) bit.getHeight() / 4, true); 
+                                  //Log.d(&quot;TAG&quot;, (int) bit.getWidth() / 2 + &quot;,&quot; + (int) bit.getHeight() / 2); 
+                                  //Toast.makeText(&quot;TAG&quot;, bit.getWidth() / 2 + &quot;,&quot; + (int) bit.getHeight() / 2, Toast.LENGTH_SHORT).show(); 
+                                  //int bytes = resized.getByteCount(); 
+                                  //ByteBuffer buffer = ByteBuffer.allocate(bytes); 
+                                  //resized.copyPixelsToBuffer(buffer); // Move the byte data to the buffer 
+                                  //byte[] temp = buffer.array(); // Get the underlying array containing the data. 
+ 
+                                  ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(); 
+                                  resized.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream); 
+                                  byte[] pixels = byteArrayOutputStream.toByteArray(); 
+                                  resized.recycle(); 
+                                  try { 
+                                      byteArrayOutputStream.flush(); 
+                                      byteArrayOutputStream.close(); 
+                                      byteArrayOutputStream = null; 
+                                  } catch (IOException e) { 
+                                      e.printStackTrace(); 
+                                  } 
+ 
+                                  byte[] pixels = new byte[(temp.length / 4) * 3]; // Allocate for 3 byte BGR 
+ 
+                                  // Copy pixels into place 
+                                  for (int i = 0; i &lt; (temp.length / 4); i++) { 
+                                      pixels[i * 3] = temp[i * 4];     // B 
+                                      pixels[i * 3 + 1] = temp[i * 4 + 1]; // G 
+                                      pixels[i * 3 + 2] = temp[i * 4 + 2]; // R 
+                                      // Alpha is discarded 
+                                  } 
+ 
+                                  temp = null; 
+                                  Preconditions.checkNotNull(pixels); 
+                                  CompressedImage image = connectedNode.getTopicMessageFactory().newFromType(CompressedImage._TYPE); 
+                                  //image.setHeight(resized.getHeight()); 
+                                  //image.setWidth(resized.getWidth()); 
+                                  //int x = resized.getRowBytes(); 
+                                  //image.setStep(x); 
+                                  //image.setEncoding(&quot;rgba8&quot;); 
+                                  image.setFormat(&quot;jpeg&quot;); 
+ 
+                                  String frameId = &quot;android_camera&quot;; 
+                                  image.getHeader().setStamp(connectedNode.getCurrentTime()); 
+                                  image.getHeader().setFrameId(frameId); 
+                                  //resized.recycle(); 
+                                  resized = null; 
+                                  try { 
+                                      stream.write(pixels); 
+                                  } catch (IOException e) { 
+                                      e.printStackTrace(); 
+                                      throw new RosRuntimeException(e); 
+                                  } 
+                                  image.setData(stream.buffer().copy()); 
+                                  Thread.sleep(50); 
+                                  stream.buffer().clear(); 
+                                  bit.recycle(); 
+                                  bit = null; 
+                                  pub.publish(image); 
+                                  //image = null; 
+                                  System.gc(); 
+                                  //isUpdate = false; 
+ 
+                              } 
+                        } 
+                    } 
+                }); 
+            } 
+ 
+            @Override 
+            public void onShutdown(Node node) { 
+ 
+            } 
+ 
+            @Override 
+            public void onShutdownComplete(Node node) { 
+ 
+            } 
+ 
+            @Override 
+            public void onError(Node node, Throwable throwable) { 
+ 
+            } 
+        }, nodeConfiguration);*/</span>
+    <span class="s1">}</span>
+
+<span class="s1">}</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<html>
+<head>
+<title>BaseDJIApplication.java</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #629755; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+BaseDJIApplication.java</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com.example.demo</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">android.app.Application</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.Context</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">androidx.multidex.MultiDex</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">com.squareup.otto.Bus</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">com.squareup.otto.ThreadEnforcer</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">dji.sdk.base.BaseProduct</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.products.Aircraft</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.products.HandHeld</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.BluetoothProductConnector</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.DJISDKManager</span><span class="s0">;</span>
+
+<span class="s0">public class </span><span class="s1">BaseDJIApplication </span><span class="s0">extends </span><span class="s1">Application {</span>
+    <span class="s0">public static final </span><span class="s1">String TAG = BaseDJIApplication.</span><span class="s0">class</span><span class="s1">.getName()</span><span class="s0">;</span>
+
+    <span class="s0">private static </span><span class="s1">BaseProduct product</span><span class="s0">;</span>
+    <span class="s0">private static </span><span class="s1">BluetoothProductConnector bluetoothConnector = </span><span class="s0">null;</span>
+    <span class="s0">private static </span><span class="s1">Bus bus = </span><span class="s0">new </span><span class="s1">Bus(ThreadEnforcer.ANY)</span><span class="s0">;</span>
+    <span class="s0">private static </span><span class="s1">Application app = </span><span class="s0">null;</span>
+    
+    <span class="s2">/**</span>
+     <span class="s2">* Gets instance of the specific product connected after the</span>
+     <span class="s2">* API KEY is successfully validated. Please make sure the</span>
+     <span class="s2">* API_KEY has been added in the Manifest</span>
+     <span class="s2">*/</span>
+    <span class="s0">public static synchronized </span><span class="s1">BaseProduct getProductInstance() {</span>
+        <span class="s1">product = DJISDKManager.getInstance().getProduct()</span><span class="s0">;</span>
+        <span class="s0">return </span><span class="s1">product</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static synchronized </span><span class="s1">BluetoothProductConnector getBluetoothProductConnector() {</span>
+        <span class="s1">bluetoothConnector = DJISDKManager.getInstance().getBluetoothProductConnector()</span><span class="s0">;</span>
+        <span class="s0">return </span><span class="s1">bluetoothConnector</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static boolean </span><span class="s1">isAircraftConnected() {</span>
+        <span class="s0">return </span><span class="s1">getProductInstance() != </span><span class="s0">null </span><span class="s1">&amp;&amp; getProductInstance() </span><span class="s0">instanceof </span><span class="s1">Aircraft</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static boolean </span><span class="s1">isHandHeldConnected() {</span>
+        <span class="s0">return </span><span class="s1">getProductInstance() != </span><span class="s0">null </span><span class="s1">&amp;&amp; getProductInstance() </span><span class="s0">instanceof </span><span class="s1">HandHeld</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static synchronized </span><span class="s1">Aircraft getAircraftInstance() {</span>
+        <span class="s0">if </span><span class="s1">(!isAircraftConnected()) {</span>
+            <span class="s0">return null;</span>
+        <span class="s1">}</span>
+        <span class="s0">return </span><span class="s1">(Aircraft) getProductInstance()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static synchronized </span><span class="s1">HandHeld getHandHeldInstance() {</span>
+        <span class="s0">if </span><span class="s1">(!isHandHeldConnected()) {</span>
+            <span class="s0">return null;</span>
+        <span class="s1">}</span>
+        <span class="s0">return </span><span class="s1">(HandHeld) getProductInstance()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static </span><span class="s1">Application getInstance() {</span>
+        <span class="s0">return </span><span class="s1">BaseDJIApplication.app</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static </span><span class="s1">Bus getEventBus() {</span>
+        <span class="s0">return </span><span class="s1">bus</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">protected void </span><span class="s1">attachBaseContext(Context paramContext) {</span>
+        <span class="s0">super</span><span class="s1">.attachBaseContext(paramContext)</span><span class="s0">;</span>
+        <span class="s1">MultiDex.install(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">com.secneo.sdk.Helper.install(</span><span class="s0">this</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">app = </span><span class="s0">this;</span>
+    <span class="s1">}</span>
+<span class="s1">}</span>
+
+</pre>
+</body>
+</html>

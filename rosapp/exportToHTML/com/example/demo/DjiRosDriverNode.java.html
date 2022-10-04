@@ -1,0 +1,528 @@
+<html>
+<head>
+<title>DjiRosDriverNode.java</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #6897bb;}
+.s3 { color: #6a8759;}
+.s4 { color: #808080;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DjiRosDriverNode.java</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com.example.demo</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">androidx.annotation.NonNull</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">org.ros.exception.ServiceException</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.message.MessageListener</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.namespace.GraphName</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.ConnectedNode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.Node</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.NodeMain</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.service.ServiceResponseBuilder</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.service.ServiceServer</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.topic.Publisher</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">org.ros.node.topic.Subscriber</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">java.util.Timer</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">java.util.TimerTask</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">dji.common.battery.BatteryState</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.error.DJIError</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.FlightControllerState</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.FlightOrientationMode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.virtualstick.FlightControlData</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.virtualstick.FlightCoordinateSystem</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.virtualstick.RollPitchControlMode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.virtualstick.VerticalControlMode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.flightcontroller.virtualstick.YawControlMode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.gimbal.GimbalState</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.gimbal.Rotation</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.gimbal.RotationMode</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.util.CommonCallbacks</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.flightcontroller.FlightController</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.products.Aircraft</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">std_srvs.EmptyRequest</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">std_srvs.EmptyResponse</span><span class="s0">;</span>
+
+<span class="s0">public class </span><span class="s1">DjiRosDriverNode </span><span class="s0">implements </span><span class="s1">NodeMain {</span>
+
+    <span class="s0">public static final int </span><span class="s1">PERIOD = </span><span class="s2">100</span><span class="s0">;</span>
+    <span class="s0">public static final int </span><span class="s1">STATUS_PERIOD = </span><span class="s2">1000</span><span class="s0">;</span>
+
+    <span class="s0">private static final float </span><span class="s1">M_PI = </span><span class="s2">3.14159f</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String NODE_NAME = </span><span class="s3">&quot;dji_ros_driver&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String TAKE_OFF_CMD = </span><span class="s3">&quot;takeoff&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String LAND_CMD = </span><span class="s3">&quot;land&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String ROTATE_CLOCKWISE_CMD = </span><span class="s3">&quot;rotate_cw&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String ROTATE_COUNTERCLOCKWISE_CMD = </span><span class="s3">&quot;rotate_ccw&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String STOP_CMD = </span><span class="s3">&quot;stop&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String START_CMD = </span><span class="s3">&quot;start&quot;</span><span class="s0">;</span>
+    <span class="s4">//private static final java.lang.String GIMBAL_UP_CMD = &quot;gimbal_up&quot;;</span>
+    <span class="s4">//private static final java.lang.String GIMBAL_DOWN_CMD = &quot;gimbal_down&quot;;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String GIMBAL_ZERO_CMD = </span><span class="s3">&quot;gimbal_zero&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String GIMBAL_NINE_CMD = </span><span class="s3">&quot;gimbal_90&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String GIMBAL_THREE_CMD = </span><span class="s3">&quot;gimbal_30&quot;</span><span class="s0">;</span>
+
+    <span class="s0">private static final </span><span class="s1">java.lang.String BASE_TOPIC_NAME = </span><span class="s3">&quot;/flight_commands&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String CMD_VEL_TOPIC_NAME = </span><span class="s3">&quot;/cmd_vel&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String DONE_TOPIC_NAME = </span><span class="s3">&quot;done&quot;</span><span class="s0">;</span>
+    <span class="s0">private static final </span><span class="s1">java.lang.String STATUS_TOPIC_NAME = </span><span class="s3">&quot;/dji/status&quot;</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">Timer sendVirtualStickDataTimer = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">SendVirtualStickDataTask sendVirtualStickDataTask = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">Timer droneStatusTimer = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">DroneStatusTask droneStatusTask = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">Timer gimbalTimer = </span><span class="s0">null;</span>
+    <span class="s0">private </span><span class="s1">SendGimbalDataTask gimbal_task = </span><span class="s0">null;</span>
+
+    <span class="s4">// Movement command values</span>
+    <span class="s0">private float </span><span class="s1">pitch = </span><span class="s2">0f</span><span class="s0">;</span>
+    <span class="s0">private float </span><span class="s1">roll = </span><span class="s2">0f</span><span class="s0">;</span>
+    <span class="s0">private float </span><span class="s1">yaw = </span><span class="s2">0f</span><span class="s0">;</span>
+    <span class="s0">private float </span><span class="s1">throttle = </span><span class="s2">0f</span><span class="s0">;</span>
+
+    <span class="s0">private boolean </span><span class="s1">initialized = </span><span class="s0">false;</span>
+    <span class="s0">private float </span><span class="s1">batteryLevelAvg = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private boolean </span><span class="s1">isConnected = </span><span class="s0">false;</span>
+    <span class="s0">private boolean </span><span class="s1">isCallbackSetup = </span><span class="s0">false;</span>
+    <span class="s0">private boolean </span><span class="s1">areMotorsOn = </span><span class="s0">false;</span>
+    <span class="s0">private boolean </span><span class="s1">isFlying = </span><span class="s0">false;</span>
+    <span class="s0">private float </span><span class="s1">altitude = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">latitude = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">longitude = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private boolean </span><span class="s1">landConfirmNeeded = </span><span class="s0">false;</span>
+    <span class="s0">private double </span><span class="s1">pitch_degrees = </span><span class="s2">0.0</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">roll_degrees = </span><span class="s2">0.0</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">yaw_degrees = </span><span class="s2">0.0</span><span class="s0">;</span>
+    <span class="s0">private float </span><span class="s1">pitchValue = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private int </span><span class="s1">headDirection = </span><span class="s2">0</span><span class="s0">;</span>
+    <span class="s0">private float </span><span class="s1">att_yaw = </span><span class="s2">0.0f</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">home_lat = </span><span class="s2">0</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">home_lot = </span><span class="s2">0</span><span class="s0">;</span>
+    <span class="s0">private double </span><span class="s1">bo_height = </span><span class="s2">0.0</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">java.lang.String commandsTopicName = BASE_TOPIC_NAME</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">java.lang.String commandsMessageType = std_msgs.String._TYPE</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">java.lang.String commandsResTopicName = BASE_TOPIC_NAME + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ DONE_TOPIC_NAME</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">java.lang.String cmdvelTopicName = CMD_VEL_TOPIC_NAME</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">java.lang.String cmdvelMessageType = geometry_msgs.Twist._TYPE</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">java.lang.String djiStatusTopicName = STATUS_TOPIC_NAME</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">java.lang.String djiStatusMessageType = std_msgs.String._TYPE</span><span class="s0">;</span>
+
+
+    <span class="s0">private </span><span class="s1">Publisher&lt;std_msgs.String&gt; pubDjiStatus</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Publisher&lt;std_msgs.Empty&gt; pubResult</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">Subscriber&lt;geometry_msgs.Twist&gt; subCmdvel</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverTakeOff</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverLand</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverRotate</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverStop</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverStart</span><span class="s0">;</span>
+    <span class="s4">//private ServiceServer&lt;std_srvs.EmptyRequest, std_srvs.EmptyResponse&gt; serverGimbalUp;</span>
+    <span class="s4">//private ServiceServer&lt;std_srvs.EmptyRequest, std_srvs.EmptyResponse&gt; serverGimbalDown;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverGimbalZero</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverGimbalNine</span><span class="s0">;</span>
+    <span class="s0">private </span><span class="s1">ServiceServer&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt; serverGimbalThree</span><span class="s0">;</span>
+    <span class="s4">//private Time now;</span>
+
+    <span class="s0">public </span><span class="s1">java.lang.String getCommandsTopicName() {</span>
+        <span class="s0">return this</span><span class="s1">.commandsResTopicName</span><span class="s0">;</span>
+    <span class="s1">}</span>
+    <span class="s0">public </span><span class="s1">java.lang.String getCommandsMessageType() {</span>
+        <span class="s0">return this</span><span class="s1">.commandsMessageType</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public void </span><span class="s1">setCommandsTopicName(java.lang.String topicName) {</span>
+        <span class="s0">this</span><span class="s1">.commandsResTopicName = topicName</span><span class="s0">;</span>
+    <span class="s1">}</span>
+    <span class="s0">public void </span><span class="s1">setCommandsMessageType(java.lang.String messageType) {</span>
+        <span class="s0">this</span><span class="s1">.commandsMessageType = messageType</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public </span><span class="s1">GraphName getDefaultNodeName() {</span>
+        <span class="s0">return </span><span class="s1">GraphName.of(NODE_NAME)</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public void </span><span class="s1">StopVirtualSticks() {</span>
+        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+    <span class="s1">}</span>
+    <span class="s0">public void </span><span class="s1">StartVirtualSticks() {</span>
+        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">true, null</span><span class="s1">)</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onStart(ConnectedNode connectedNode) {</span>
+
+        <span class="s4">//Setting up publishers</span>
+        <span class="s1">pubDjiStatus = connectedNode.newPublisher(djiStatusTopicName</span><span class="s0">, </span><span class="s1">djiStatusMessageType)</span><span class="s0">;</span>
+        <span class="s1">pubResult = connectedNode.newPublisher(commandsResTopicName</span><span class="s0">, </span><span class="s1">std_msgs.Empty._TYPE)</span><span class="s0">;</span>
+
+        <span class="s1">serverTakeOff = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ TAKE_OFF_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(std_srvs.EmptyRequest empty</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse empty2) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+                        <span class="s1">flightController.startTakeoff(</span><span class="s0">new </span><span class="s1">CommonCallbacks.CompletionCallback() {</span>
+                            <span class="s1">@Override</span>
+                            <span class="s0">public void </span><span class="s1">onResult(DJIError djiError) {</span>
+                                <span class="s1">pubResult.publish(pubResult.newMessage())</span><span class="s0">;</span>
+                                <span class="s1">StartVirtualSticks()</span><span class="s0">;</span>
+                            <span class="s1">}</span>
+                        <span class="s1">})</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s1">serverLand = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ LAND_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(std_srvs.EmptyRequest empty</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse empty2) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+
+                        <span class="s1">flightController.startLanding(</span><span class="s0">new </span><span class="s1">CommonCallbacks.CompletionCallback() {</span>
+                            <span class="s1">@Override</span>
+                            <span class="s0">public void </span><span class="s1">onResult(DJIError djiError) {</span>
+                                <span class="s1">pubResult.publish(pubResult.newMessage())</span><span class="s0">;</span>
+                            <span class="s1">}</span>
+                        <span class="s1">})</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s1">serverRotate = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ ROTATE_CLOCKWISE_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;std_srvs.EmptyRequest</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(std_srvs.EmptyRequest empty</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse empty2) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+                        <span class="s0">if </span><span class="s1">(isFlying) {</span>
+                            <span class="s1">yaw = -</span><span class="s2">20f</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s1">serverStop = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ STOP_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;EmptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(std_srvs.EmptyRequest empty</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse empty2) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+
+                        <span class="s4">//Setting all control parameters to 0 and disable virtual sticks</span>
+
+                        <span class="s1">pitch = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">roll = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">yaw = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">throttle = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s1">serverStart = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ START_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;EmptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(std_srvs.EmptyRequest empty</span><span class="s0">, </span><span class="s1">std_srvs.EmptyResponse empty2) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s0">final </span><span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                        <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+
+                        <span class="s4">//Setting all control parameters to 0 and disable virtual sticks</span>
+
+                        <span class="s1">pitch = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">roll = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">yaw = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">throttle = </span><span class="s2">0f</span><span class="s0">;</span>
+                        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+                        <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">true, null</span><span class="s1">)</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s4">/*serverGimbalUp = connectedNode.newServiceServer( 
+                commandsTopicName + &quot;/&quot; + GIMBAL_UP_CMD, Empty._TYPE, new ServiceResponseBuilder&lt;EmptyRequest, EmptyResponse&gt;() { 
+                    @Override 
+                    public void build(EmptyRequest emptyRequest, EmptyResponse emptyResponse) throws ServiceException { 
+ 
+                        pitchValue = 10.0f; 
+                        int now = connectedNode.getCurrentTime().secs; 
+                        while (connectedNode.getCurrentTime().secs - now &lt; 2.0) 
+                        {} 
+                        pitchValue = 0.0f; 
+                    } 
+                } 
+        );*/</span>
+
+        <span class="s4">/*serverGimbalDown = connectedNode.newServiceServer( 
+                commandsTopicName + &quot;/&quot; + GIMBAL_DOWN_CMD, Empty._TYPE, new ServiceResponseBuilder&lt;EmptyRequest, EmptyResponse&gt;() { 
+                    @Override 
+                    public void build(EmptyRequest emptyRequest, EmptyResponse emptyResponse) throws ServiceException { 
+                        pitchValue = -10.0f; 
+                        int now = connectedNode.getCurrentTime().secs; 
+                        while (connectedNode.getCurrentTime().secs - now &lt; 2.0) 
+                        {} 
+                        pitchValue = 0.0f; 
+                    } 
+                } 
+        );*/</span>
+
+        <span class="s1">serverGimbalZero = connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ GIMBAL_ZERO_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;EmptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(EmptyRequest emptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse emptyResponse) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s1">pitchValue = </span><span class="s2">0.0f</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">}</span>
+        <span class="s1">)</span><span class="s0">;</span>
+
+        <span class="s1">serverGimbalNine= connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ GIMBAL_NINE_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;EmptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(EmptyRequest emptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse emptyResponse) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s1">pitchValue = -</span><span class="s2">90.0f</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">}</span>
+        <span class="s1">)</span><span class="s0">;</span>
+
+        <span class="s1">serverGimbalThree= connectedNode.newServiceServer(</span>
+                <span class="s1">commandsTopicName + </span><span class="s3">&quot;/&quot; </span><span class="s1">+ GIMBAL_THREE_CMD</span><span class="s0">, </span><span class="s1">std_srvs.Empty._TYPE</span><span class="s0">, new </span><span class="s1">ServiceResponseBuilder&lt;EmptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse&gt;() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">build(EmptyRequest emptyRequest</span><span class="s0">, </span><span class="s1">EmptyResponse emptyResponse) </span><span class="s0">throws </span><span class="s1">ServiceException {</span>
+                        <span class="s1">pitchValue = -</span><span class="s2">30.0f</span><span class="s0">;</span>
+                    <span class="s1">}</span>
+                <span class="s1">}</span>
+        <span class="s1">)</span><span class="s0">;</span>
+
+        <span class="s4">//Setting up listeners</span>
+        <span class="s1">subCmdvel = connectedNode.newSubscriber(</span><span class="s0">this</span><span class="s1">.cmdvelTopicName</span><span class="s0">, this</span><span class="s1">.cmdvelMessageType)</span><span class="s0">;</span>
+
+        <span class="s1">subCmdvel.addMessageListener(</span><span class="s0">new </span><span class="s1">MessageListener&lt;geometry_msgs.Twist&gt;() {</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onNewMessage(geometry_msgs.Twist o) {</span>
+                <span class="s4">// save commands in global fields which will be used in for the virtual sticks</span>
+                <span class="s4">//Log.d(&quot;TAG&quot;, o.toString());</span>
+                <span class="s4">//geometry_msgs.Twist message = (geometry_msgs.Twist) o;</span>
+                <span class="s1">throttle = (</span><span class="s0">float</span><span class="s1">) o.getLinear().getZ()</span><span class="s0">; </span><span class="s4">// Movement along the Z axis</span>
+                <span class="s1">pitch = (</span><span class="s0">float</span><span class="s1">) o.getLinear().getY()</span><span class="s0">; </span><span class="s4">// Movement along the y axis</span>
+                <span class="s1">roll = (</span><span class="s0">float</span><span class="s1">) o.getLinear().getX()</span><span class="s0">; </span><span class="s4">// Movement along the x axis</span>
+                <span class="s1">yaw = ((</span><span class="s0">float</span><span class="s1">) o.getAngular().getZ() * </span><span class="s2">180</span><span class="s1">) / M_PI</span><span class="s0">; </span><span class="s4">// Convert to degrees. ROS works with radians...</span>
+                <span class="s4">//now = Time.fromMillis(System.currentTimeMillis());</span>
+                <span class="s4">//currentReceiveTime = System.currentTimeMillis()/1000;</span>
+                <span class="s4">//Log.d(&quot;Tag&quot;,currentReceiveTime.toString());</span>
+            <span class="s1">}</span>
+        <span class="s1">})</span><span class="s0">;</span>
+
+        <span class="s4">//Running threads</span>
+        <span class="s1">runVirtualStickThread()</span><span class="s0">;</span>
+        <span class="s1">runDroneStatusThread()</span><span class="s0">;</span>
+        <span class="s1">runGimbalThread()</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onShutdown(Node node) {</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">!= sendVirtualStickDataTimer) {</span>
+            <span class="s1">sendVirtualStickDataTimer.cancel()</span><span class="s0">;</span>
+            <span class="s1">sendVirtualStickDataTimer.purge()</span><span class="s0">;</span>
+            <span class="s1">sendVirtualStickDataTimer = </span><span class="s0">null;</span>
+            <span class="s1">sendVirtualStickDataTask = </span><span class="s0">null;</span>
+        <span class="s1">}</span>
+
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">!= droneStatusTimer) {</span>
+            <span class="s1">droneStatusTimer.cancel()</span><span class="s0">;</span>
+            <span class="s1">droneStatusTimer.purge()</span><span class="s0">;</span>
+            <span class="s1">droneStatusTimer = </span><span class="s0">null;</span>
+            <span class="s1">droneStatusTask = </span><span class="s0">null;</span>
+        <span class="s1">}</span>
+
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">!= gimbalTimer) {</span>
+            <span class="s1">gimbalTimer.cancel()</span><span class="s0">;</span>
+            <span class="s1">gimbalTimer.purge()</span><span class="s0">;</span>
+            <span class="s1">gimbalTimer = </span><span class="s0">null;</span>
+            <span class="s1">gimbal_task = </span><span class="s0">null;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onShutdownComplete(Node node) {</span>
+
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onError(Node node</span><span class="s0">, </span><span class="s1">Throwable throwable) {</span>
+
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">runGimbalThread() {</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">== gimbalTimer) {</span>
+            <span class="s1">gimbal_task = </span><span class="s0">new </span><span class="s1">SendGimbalDataTask()</span><span class="s0">;</span>
+            <span class="s1">gimbalTimer = </span><span class="s0">new </span><span class="s1">Timer()</span><span class="s0">;</span>
+            <span class="s1">gimbalTimer.schedule(gimbal_task</span><span class="s0">, </span><span class="s2">0</span><span class="s0">, </span><span class="s1">PERIOD)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">runVirtualStickThread() {</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">== sendVirtualStickDataTimer) {</span>
+            <span class="s1">sendVirtualStickDataTask = </span><span class="s0">new </span><span class="s1">SendVirtualStickDataTask()</span><span class="s0">;</span>
+            <span class="s1">sendVirtualStickDataTimer = </span><span class="s0">new </span><span class="s1">Timer()</span><span class="s0">;</span>
+            <span class="s1">sendVirtualStickDataTimer.schedule(sendVirtualStickDataTask</span><span class="s0">, </span><span class="s2">0</span><span class="s0">, </span><span class="s1">PERIOD)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">runDroneStatusThread() {</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">== droneStatusTimer) {</span>
+            <span class="s1">droneStatusTask = </span><span class="s0">new </span><span class="s1">DroneStatusTask()</span><span class="s0">;</span>
+            <span class="s1">droneStatusTimer = </span><span class="s0">new </span><span class="s1">Timer()</span><span class="s0">;</span>
+            <span class="s1">droneStatusTimer.schedule(droneStatusTask</span><span class="s0">, </span><span class="s2">0</span><span class="s0">, </span><span class="s1">STATUS_PERIOD)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">initializeIfNeeded(FlightController flightController) {</span>
+
+        <span class="s0">if </span><span class="s1">(!initialized) {</span>
+
+            <span class="s1">flightController.setVirtualStickModeEnabled(</span><span class="s0">true, null</span><span class="s1">)</span><span class="s0">;</span>
+            <span class="s1">flightController.setNoviceModeEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+            <span class="s1">flightController.setYawControlMode(YawControlMode.ANGULAR_VELOCITY)</span><span class="s0">;</span>
+            <span class="s1">flightController.setVerticalControlMode(VerticalControlMode.VELOCITY)</span><span class="s0">;</span>
+            <span class="s1">flightController.setRollPitchControlMode(RollPitchControlMode.VELOCITY)</span><span class="s0">;</span>
+            <span class="s1">flightController.setRollPitchCoordinateSystem(FlightCoordinateSystem.BODY)</span><span class="s0">;</span>
+            <span class="s1">flightController.getFlightAssistant().setCollisionAvoidanceEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+            <span class="s1">flightController.getFlightAssistant().setActiveObstacleAvoidanceEnabled(</span><span class="s0">false, null</span><span class="s1">)</span><span class="s0">;</span>
+            <span class="s1">flightController.setFlightOrientationMode(FlightOrientationMode.AIRCRAFT_HEADING</span><span class="s0">, null</span><span class="s1">)</span><span class="s0">;</span>
+
+            <span class="s1">initialized = </span><span class="s0">true;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private class </span><span class="s1">SendVirtualStickDataTask </span><span class="s0">extends </span><span class="s1">TimerTask {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">run() {</span>
+            <span class="s4">//Long tsLong =</span>
+            <span class="s4">//String ts = tsLong.toString();</span>
+
+            <span class="s0">if </span><span class="s1">(BaseDJIApplication.getProductInstance() != </span><span class="s0">null</span><span class="s1">) {</span>
+                <span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                <span class="s1">initializeIfNeeded(flightController)</span><span class="s0">;</span>
+
+                <span class="s4">/*if (Time.fromMillis(System.currentTimeMillis()).secs - now.secs &gt; 1.5f) { 
+                    pitch = 0.0f; 
+                    roll = 0.0f; 
+                    yaw = 0.0f; 
+                    throttle = 0.0f; 
+                }*/</span>
+                <span class="s4">//use the global fields and send as virtual sticks params.</span>
+                <span class="s1">flightController.sendVirtualStickFlightControlData(</span><span class="s0">new </span><span class="s1">FlightControlData(pitch</span><span class="s0">,</span>
+                                <span class="s1">roll</span><span class="s0">,</span>
+                                <span class="s1">yaw</span><span class="s0">,</span>
+                                <span class="s1">throttle)</span><span class="s0">,</span>
+                        <span class="s0">new </span><span class="s1">CommonCallbacks.CompletionCallback() {</span>
+                            <span class="s1">@Override</span>
+                            <span class="s0">public void </span><span class="s1">onResult(DJIError djiError) {</span>
+                            <span class="s1">}</span>
+                        <span class="s1">})</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private class </span><span class="s1">SendGimbalDataTask </span><span class="s0">extends </span><span class="s1">TimerTask {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">run() {</span>
+            <span class="s0">if </span><span class="s1">( ModuleVerificationUtil.isGimbalModuleAvailable()) {</span>
+                <span class="s1">BaseDJIApplication.getProductInstance().getGimbal().</span>
+                        <span class="s1">rotate(</span><span class="s0">new </span><span class="s1">Rotation.Builder().pitch(pitchValue)</span>
+                                                    <span class="s1">.mode(RotationMode.ABSOLUTE_ANGLE)</span>
+                                                    <span class="s1">.yaw(Rotation.NO_ROTATION)</span>
+                                                    <span class="s1">.roll(Rotation.NO_ROTATION)</span>
+                                                    <span class="s1">.time(</span><span class="s2">0</span><span class="s1">)</span>
+                                                    <span class="s1">.build()</span><span class="s0">, new </span><span class="s1">CommonCallbacks.CompletionCallback() {</span>
+                    <span class="s1">@Override</span>
+                    <span class="s0">public void </span><span class="s1">onResult(DJIError djiError) {</span>
+
+                    <span class="s1">}</span>
+                <span class="s1">})</span><span class="s0">;</span>
+            <span class="s1">}</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+
+    <span class="s0">private class </span><span class="s1">DroneStatusTask </span><span class="s0">extends </span><span class="s1">TimerTask {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">run() {</span>
+            <span class="s0">if </span><span class="s1">(BaseDJIApplication.getProductInstance() != </span><span class="s0">null</span><span class="s1">) {</span>
+                <span class="s1">isConnected = BaseDJIApplication.getProductInstance().isConnected()</span><span class="s0">;</span>
+
+                <span class="s0">if </span><span class="s1">(!isCallbackSetup) {</span>
+                    <span class="s1">BaseDJIApplication.getProductInstance().getBattery().setStateCallback(</span><span class="s0">new </span><span class="s1">BatteryState.Callback() {</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onUpdate(BatteryState batteryState) {</span>
+                            <span class="s1">batteryLevelAvg = batteryState.getChargeRemainingInPercent()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+
+
+                    <span class="s1">((Aircraft) BaseDJIApplication.getProductInstance()).getFlightController().setStateCallback(</span><span class="s0">new </span><span class="s1">FlightControllerState.Callback() {</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onUpdate(FlightControllerState flightControllerState) {</span>
+                            <span class="s1">areMotorsOn = flightControllerState.areMotorsOn()</span><span class="s0">;</span>
+                            <span class="s1">isFlying = flightControllerState.isFlying()</span><span class="s0">;</span>
+                            <span class="s1">altitude = flightControllerState.getAircraftLocation().getAltitude()</span><span class="s0">;</span>
+                            <span class="s1">latitude = flightControllerState.getAircraftLocation().getLatitude()</span><span class="s0">;</span>
+                            <span class="s1">longitude = flightControllerState.getAircraftLocation().getLongitude()</span><span class="s0">;</span>
+                            <span class="s1">landConfirmNeeded = flightControllerState.isLandingConfirmationNeeded()</span><span class="s0">;</span>
+                            <span class="s1">headDirection = flightControllerState.getAircraftHeadDirection()</span><span class="s0">;</span>
+                            <span class="s1">att_yaw = (</span><span class="s0">float</span><span class="s1">) flightControllerState.getAttitude().yaw</span><span class="s0">;</span>
+                            <span class="s1">home_lat = flightControllerState.getHomeLocation().getLatitude()</span><span class="s0">;</span>
+                            <span class="s1">home_lot = flightControllerState.getHomeLocation().getLongitude()</span><span class="s0">;</span>
+                            <span class="s1">bo_height = flightControllerState.getUltrasonicHeightInMeters()</span><span class="s0">;</span>
+
+
+                            <span class="s0">if </span><span class="s1">(landConfirmNeeded) {</span>
+                                <span class="s1">FlightController flightController = ((Aircraft) (BaseDJIApplication.getProductInstance())).getFlightController()</span><span class="s0">;</span>
+                                <span class="s1">flightController.confirmLanding(</span><span class="s0">new </span><span class="s1">CommonCallbacks.CompletionCallback() {</span>
+                                    <span class="s1">@Override</span>
+                                    <span class="s0">public void </span><span class="s1">onResult(DJIError djiError) {</span>
+                                        <span class="s1">pubResult.publish(pubResult.newMessage())</span><span class="s0">;</span>
+                                    <span class="s1">}</span>
+                                <span class="s1">})</span><span class="s0">;</span>
+                            <span class="s1">}</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+
+                    <span class="s1">BaseDJIApplication.getProductInstance().getGimbal().setStateCallback(</span><span class="s0">new </span><span class="s1">GimbalState.Callback() {</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onUpdate(@NonNull GimbalState gimbalState) {</span>
+                            <span class="s1">roll_degrees = gimbalState.getAttitudeInDegrees().getRoll()</span><span class="s0">;</span>
+                            <span class="s1">pitch_degrees = gimbalState.getAttitudeInDegrees().getPitch()</span><span class="s0">;</span>
+                            <span class="s1">yaw_degrees = gimbalState.getAttitudeInDegrees().getYaw()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+                <span class="s1">}</span>
+            <span class="s1">}</span>
+
+            <span class="s1">std_msgs.String msg = pubDjiStatus.newMessage()</span><span class="s0">;</span>
+            <span class="s1">msg.setData(</span><span class="s3">&quot;home_lat=&quot; </span><span class="s1">+ home_lat + </span><span class="s3">&quot;;home_lot=&quot; </span><span class="s1">+ home_lot + </span><span class="s3">&quot;;headDirection=&quot; </span><span class="s1">+ headDirection + </span><span class="s3">&quot;;att_yaw=&quot; </span><span class="s1">+ att_yaw + </span><span class="s3">&quot;;battery=&quot; </span><span class="s1">+ batteryLevelAvg + </span><span class="s3">&quot;;isConnected=&quot; </span><span class="s1">+ isConnected + </span><span class="s3">&quot;;areMotorsOn=&quot; </span><span class="s1">+ areMotorsOn + </span><span class="s3">&quot;;isFlying=&quot; </span><span class="s1">+ isFlying + </span><span class="s3">&quot;;lat=&quot; </span><span class="s1">+ latitude + </span><span class="s3">&quot;;long=&quot; </span><span class="s1">+ longitude + </span><span class="s3">&quot;;altitude=&quot; </span><span class="s1">+ altitude + </span><span class="s3">&quot;;roll_degrees=&quot; </span><span class="s1">+ roll_degrees  + </span><span class="s3">&quot;;pitch_degrees=&quot; </span><span class="s1">+ pitch_degrees + </span><span class="s3">&quot;;yaw_degrees=&quot; </span><span class="s1">+ yaw_degrees + </span><span class="s3">&quot;;bo_height=&quot; </span><span class="s1">+ bo_height)</span><span class="s0">;</span>
+            <span class="s1">pubDjiStatus.publish(msg)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+<span class="s1">}</span>
+
+</pre>
+</body>
+</html>

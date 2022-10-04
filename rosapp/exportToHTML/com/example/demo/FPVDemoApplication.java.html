@@ -1,0 +1,209 @@
+<html>
+<head>
+<title>FPVDemoApplication.java</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #6a8759;}
+.s3 { color: #629755; font-style: italic;}
+.s4 { color: #808080;}
+.s5 { color: #6897bb;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FPVDemoApplication.java</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com.example.demo</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">android.app.Application</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.Context</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.content.Intent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Build</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Handler</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.os.Looper</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.util.Log</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">android.widget.Toast</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">androidx.core.content.ContextCompat</span><span class="s0">;</span>
+
+<span class="s0">import </span><span class="s1">dji.common.error.DJIError</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.common.error.DJISDKError</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.base.BaseComponent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.base.BaseProduct</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.camera.Camera</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.products.Aircraft</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.products.HandHeld</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.DJISDKInitEvent</span><span class="s0">;</span>
+<span class="s0">import </span><span class="s1">dji.sdk.sdkmanager.DJISDKManager</span><span class="s0">;</span>
+
+<span class="s0">public class </span><span class="s1">FPVDemoApplication </span><span class="s0">extends </span><span class="s1">Application{</span>
+
+    <span class="s0">public static final </span><span class="s1">String FLAG_CONNECTION_CHANGE = </span><span class="s2">&quot;fpv_tutorial_connection_change&quot;</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">DJISDKManager.SDKManagerCallback mDJISDKManagerCallback</span><span class="s0">;</span>
+    <span class="s0">private static </span><span class="s1">BaseProduct mProduct</span><span class="s0">;</span>
+    <span class="s0">public </span><span class="s1">Handler mHandler</span><span class="s0">;</span>
+
+    <span class="s0">private </span><span class="s1">Application instance</span><span class="s0">;</span>
+
+    <span class="s0">public void </span><span class="s1">setContext(Application application) {</span>
+        <span class="s1">instance = application</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public </span><span class="s1">Context getApplicationContext() {</span>
+        <span class="s0">return </span><span class="s1">instance</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public </span><span class="s1">FPVDemoApplication() {</span>
+
+    <span class="s1">}</span>
+
+    <span class="s3">/**</span>
+     <span class="s3">* This function is used to get the instance of DJIBaseProduct.</span>
+     <span class="s3">* If no product is connected, it returns null.</span>
+     <span class="s3">*/</span>
+    <span class="s0">public static synchronized </span><span class="s1">BaseProduct getProductInstance() {</span>
+        <span class="s0">if </span><span class="s1">(</span><span class="s0">null </span><span class="s1">== mProduct) {</span>
+            <span class="s1">mProduct = DJISDKManager.getInstance().getProduct()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+        <span class="s0">return </span><span class="s1">mProduct</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">public static synchronized </span><span class="s1">Camera getCameraInstance() {</span>
+
+        <span class="s0">if </span><span class="s1">(getProductInstance() == </span><span class="s0">null</span><span class="s1">) </span><span class="s0">return null;</span>
+
+        <span class="s1">Camera camera = </span><span class="s0">null;</span>
+
+        <span class="s0">if </span><span class="s1">(getProductInstance() </span><span class="s0">instanceof </span><span class="s1">Aircraft){</span>
+            <span class="s1">camera = ((Aircraft) getProductInstance()).getCamera()</span><span class="s0">;</span>
+
+        <span class="s1">} </span><span class="s0">else if </span><span class="s1">(getProductInstance() </span><span class="s0">instanceof </span><span class="s1">HandHeld) {</span>
+            <span class="s1">camera = ((HandHeld) getProductInstance()).getCamera()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+
+        <span class="s0">return </span><span class="s1">camera</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@Override</span>
+    <span class="s0">public void </span><span class="s1">onCreate() {</span>
+        <span class="s0">super</span><span class="s1">.onCreate()</span><span class="s0">;</span>
+        <span class="s1">mHandler = </span><span class="s0">new </span><span class="s1">Handler(Looper.getMainLooper())</span><span class="s0">;</span>
+
+        <span class="s3">/**</span>
+         <span class="s3">* When starting SDK services, an instance of interface DJISDKManager.DJISDKManagerCallback will be used to listen to</span>
+         <span class="s3">* the SDK Registration result and the product changing.</span>
+         <span class="s3">*/</span>
+        <span class="s1">mDJISDKManagerCallback = </span><span class="s0">new </span><span class="s1">DJISDKManager.SDKManagerCallback() {</span>
+
+            <span class="s4">//Listens to the SDK registration result</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onRegister(DJIError djiError) {</span>
+                <span class="s0">if</span><span class="s1">(djiError == DJISDKError.REGISTRATION_SUCCESS) {</span>
+                    <span class="s1">Handler handler = </span><span class="s0">new </span><span class="s1">Handler(Looper.getMainLooper())</span><span class="s0">;</span>
+                    <span class="s1">handler.post(</span><span class="s0">new </span><span class="s1">Runnable() {</span>
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">run() {</span>
+                            <span class="s1">Toast.makeText(getApplicationContext()</span><span class="s0">, </span><span class="s2">&quot;Register Success&quot;</span><span class="s0">, </span><span class="s1">Toast.LENGTH_LONG).show()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+                    <span class="s1">DJISDKManager.getInstance().startConnectionToProduct()</span><span class="s0">;</span>
+
+                <span class="s1">} </span><span class="s0">else </span><span class="s1">{</span>
+
+                    <span class="s1">Handler handler = </span><span class="s0">new </span><span class="s1">Handler(Looper.getMainLooper())</span><span class="s0">;</span>
+                    <span class="s1">handler.post(</span><span class="s0">new </span><span class="s1">Runnable() {</span>
+
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">run() {</span>
+                            <span class="s1">Toast.makeText(getApplicationContext()</span><span class="s0">, </span><span class="s2">&quot;Register sdk fails, check network is available&quot;</span><span class="s0">, </span><span class="s1">Toast.LENGTH_LONG).show()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+
+                <span class="s1">}</span>
+                <span class="s1">Log.e(</span><span class="s2">&quot;TAG&quot;</span><span class="s0">, </span><span class="s1">djiError.toString())</span><span class="s0">;</span>
+            <span class="s1">}</span>
+
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onProductDisconnect() {</span>
+                <span class="s1">Log.d(</span><span class="s2">&quot;TAG&quot;</span><span class="s0">, </span><span class="s2">&quot;onProductDisconnect&quot;</span><span class="s1">)</span><span class="s0">;</span>
+                <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+            <span class="s1">}</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onProductConnect(BaseProduct baseProduct) {</span>
+                <span class="s1">Log.d(</span><span class="s2">&quot;TAG&quot;</span><span class="s0">, </span><span class="s1">String.format(</span><span class="s2">&quot;onProductConnect newProduct:%s&quot;</span><span class="s0">, </span><span class="s1">baseProduct))</span><span class="s0">;</span>
+                <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+
+            <span class="s1">}</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onProductChanged(BaseProduct baseProduct) {</span>
+
+            <span class="s1">}</span>
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onComponentChange(BaseProduct.ComponentKey componentKey</span><span class="s0">, </span><span class="s1">BaseComponent oldComponent</span><span class="s0">,</span>
+                                          <span class="s1">BaseComponent newComponent) {</span>
+                <span class="s0">if </span><span class="s1">(newComponent != </span><span class="s0">null</span><span class="s1">) {</span>
+                    <span class="s1">newComponent.setComponentListener(</span><span class="s0">new </span><span class="s1">BaseComponent.ComponentListener() {</span>
+
+                        <span class="s1">@Override</span>
+                        <span class="s0">public void </span><span class="s1">onConnectivityChange(</span><span class="s0">boolean </span><span class="s1">isConnected) {</span>
+                            <span class="s1">Log.d(</span><span class="s2">&quot;TAG&quot;</span><span class="s0">, </span><span class="s2">&quot;onComponentConnectivityChanged: &quot; </span><span class="s1">+ isConnected)</span><span class="s0">;</span>
+                            <span class="s1">notifyStatusChange()</span><span class="s0">;</span>
+                        <span class="s1">}</span>
+                    <span class="s1">})</span><span class="s0">;</span>
+                <span class="s1">}</span>
+
+                <span class="s1">Log.d(</span><span class="s2">&quot;TAG&quot;</span><span class="s0">,</span>
+                        <span class="s1">String.format(</span><span class="s2">&quot;onComponentChange key:%s, oldComponent:%s, newComponent:%s&quot;</span><span class="s0">,</span>
+                                <span class="s1">componentKey</span><span class="s0">,</span>
+                                <span class="s1">oldComponent</span><span class="s0">,</span>
+                                <span class="s1">newComponent))</span><span class="s0">;</span>
+
+            <span class="s1">}</span>
+
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onInitProcess(DJISDKInitEvent djisdkInitEvent</span><span class="s0">, int </span><span class="s1">i) {</span>
+
+            <span class="s1">}</span>
+
+            <span class="s1">@Override</span>
+            <span class="s0">public void </span><span class="s1">onDatabaseDownloadProgress(</span><span class="s0">long </span><span class="s1">l</span><span class="s0">, long </span><span class="s1">l1) {</span>
+
+            <span class="s1">}</span>
+
+        <span class="s1">}</span><span class="s0">;</span>
+        <span class="s4">//Check the permissions before registering the application for android system 6.0 above.</span>
+        <span class="s0">int </span><span class="s1">permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext()</span><span class="s0">, </span><span class="s1">android.Manifest.permission.WRITE_EXTERNAL_STORAGE)</span><span class="s0">;</span>
+        <span class="s0">int </span><span class="s1">permissionCheck2 = ContextCompat.checkSelfPermission(getApplicationContext()</span><span class="s0">, </span><span class="s1">android.Manifest.permission.READ_PHONE_STATE)</span><span class="s0">;</span>
+        <span class="s0">if </span><span class="s1">(Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.M || (permissionCheck == </span><span class="s5">0 </span><span class="s1">&amp;&amp; permissionCheck2 == </span><span class="s5">0</span><span class="s1">)) {</span>
+            <span class="s4">//This is used to start SDK services and initiate SDK.</span>
+            <span class="s1">DJISDKManager.getInstance().registerApp(getApplicationContext()</span><span class="s0">, </span><span class="s1">mDJISDKManagerCallback)</span><span class="s0">;</span>
+            <span class="s1">Toast.makeText(getApplicationContext()</span><span class="s0">, </span><span class="s2">&quot;registering, pls wait...&quot;</span><span class="s0">, </span><span class="s1">Toast.LENGTH_LONG).show()</span><span class="s0">;</span>
+
+        <span class="s1">} </span><span class="s0">else </span><span class="s1">{</span>
+            <span class="s1">Toast.makeText(getApplicationContext()</span><span class="s0">, </span><span class="s2">&quot;Please check if the permission is granted.&quot;</span><span class="s0">, </span><span class="s1">Toast.LENGTH_LONG).show()</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private void </span><span class="s1">notifyStatusChange() {</span>
+        <span class="s1">mHandler.removeCallbacks(updateRunnable)</span><span class="s0">;</span>
+        <span class="s1">mHandler.postDelayed(updateRunnable</span><span class="s0">, </span><span class="s5">500</span><span class="s1">)</span><span class="s0">;</span>
+    <span class="s1">}</span>
+
+    <span class="s0">private </span><span class="s1">Runnable updateRunnable = </span><span class="s0">new </span><span class="s1">Runnable() {</span>
+
+        <span class="s1">@Override</span>
+        <span class="s0">public void </span><span class="s1">run() {</span>
+            <span class="s1">Intent intent = </span><span class="s0">new </span><span class="s1">Intent(FLAG_CONNECTION_CHANGE)</span><span class="s0">;</span>
+            <span class="s1">getApplicationContext().sendBroadcast(intent)</span><span class="s0">;</span>
+        <span class="s1">}</span>
+    <span class="s1">}</span><span class="s0">;</span>
+
+<span class="s1">}</span></pre>
+</body>
+</html>
